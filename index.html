@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disparador de Emails Simples</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-success:hover { background: #059669; }
+        .btn-secondary { background: #6b7280; color: white; }
+        .btn-secondary:hover { background: #4b5563; }
+        .input { width: 100%; padding: 12px; border: 2px solid #d1d5db; border-radius: 8px; }
+        .textarea { width: 100%; padding: 12px; border: 2px solid #d1d5db; border-radius: 8px; min-height: 120px; }
+        .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; }
+        .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .alert-success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+        .contato-item { background: #f8fafc; padding: 16px; border-radius: 8px; margin-bottom: 8px; border: 1px solid #e2e8f0; }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useRef } = React;
+
+        function App() {
+            const [contatos, setContatos] = useState([]);
+            const [assunto, setAssunto] = useState('');
+            const [mensagem, setMensagem] = useState('Prezado(a) {nome},\n\nSegue em anexo os documentos.\n\nAtenciosamente,\nEquipe');
+            const [anexos, setAnexos] = useState([]);
+            const [caminhoAnexos, setCaminhoAnexos] = useState('');
+            const [erro, setErro] = useState('');
+            const [sucesso, setSucesso] = useState('');
+            const [gerando, setGerando] = useState(false);
+            
+            const fileInputRef = useRef(null);
+            const anexoInputRef = useRef(null);
+
+            // Função para processar CSV manualmente
+            const processarCSV = (texto) => {
+                try {
+                    const linhas = texto.split('\n').filter(linha => linha.trim());
+                    if (linhas.length < 2) throw new Error('CSV deve ter pelo menos 2 linhas');
+                    
+                    const cabecalho = linhas[0].split(',').map(c => c.trim());
+                    const novosContatos = [];
+                    
+                    for (let i = 1; i < linhas.length; i++) {
+                        const valores = linhas[i].split(',');
+                        if (valores.length < 2) continue;
+                        
+                        const nome = valores[0] ? valores[0].trim() : '';
+                        const email = valores[1] ? valores[1].trim() : '';
+                        
+                        if (nome && email && email.includes('@')) {
+                            const primeiroNome = nome.split(' ')[0];
+                            novosContatos.push({
+                                nome,
+                                email,
+                                primeiroNome,
+                                anexosAssociados: []
+                            });
+                        }
+                    }
+                    
+                    return novosContatos;
+                } catch (error) {
+                    throw new Error('Erro ao processar CSV: ' + error.message);
+                }
+            };
+
+            // Função para ler arquivo
+            const lerArquivo = (file) => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = (e) => reject(new Error('Erro ao ler arquivo'));
+                    reader.readAsText(file, 'utf-8');
+                });
+            };
+
+            // Adicionar contatos manualmente
+            const adicionarContatosManualmente = () => {
+                const texto = prompt('Cole os contatos no formato:\nNome,Email\nJoão Silva,joao@email.com\nMaria Santos,maria@email.com');
+                if (!texto) return;
+                
+                try {
+                    const novos = processarCSV(texto);
+                    if (novos.length === 0) throw new Error('Nenhum contato válido encontrado');
+                    setContatos(novos);
+                    setSucesso(`${novos.length} contatos adicionados!`);
+                } catch (error) {
+                    setErro(error.message);
+                }
+            };
+
+            // Upload arquivo CSV
+            const uploadArquivo = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                setErro('');
+                try {
+                    const conteudo = await lerArquivo(file);
+                    const novos = processarCSV(conteudo);
+                    if (novos.length === 0) throw new Error('Nenhum contato válido encontrado no arquivo');
+                    setContatos(novos);
+                    setSucesso(`${novos.length} contatos carregados do arquivo!`);
+                } catch (error) {
+                    setErro(error.message);
+                }
+                
+                // Limpar input
+                e.target.value = '';
+            };
+
+            // Adicionar anexos
+            const adicionarAnexos = (e) => {
+                const files = Array.from(e.target.files);
+                if (files.length === 0) return;
+                
+                const novosAnexos = files.map(file => ({
+                    name: file.name,
+                    size: file.size
+                }));
+                
+                setAnexos(prev => [...prev, ...novosAnexos]);
+                setSucesso(`${novosAnexos.length} arquivo(s) adicionado(s)!`);
+            };
+
+            // Gerar VBScript
+            const gerarVBScript = () => {
+                setErro('');
+                if (contatos.length === 0) {
+                    setErro('Adicione pelo menos um contato');
+                    return;
+                }
+                
+                if (!assunto.trim()) {
+                    setErro('Digite o assunto do email');
+                    return;
+                }
+                
+                if (!caminhoAnexos.trim()) {
+                    setErro('Digite o caminho da pasta dos anexos');
+                    return;
+                }
+                
+                if (anexos.length === 0) {
+                    if (!confirm('Nenhum anexo foi selecionado. Continuar?')) {
+                        return;
+                    }
+                }
+                
+                setGerando(true);
+                
+                setTimeout(() => {
+                    try {
+                        const vbsContent = criarVBScript();
+                        downloadArquivo(vbsContent, 'enviar_emails.vbs', 'text/plain');
+                        setSucesso('Arquivo VBScript gerado com sucesso!');
+                    } catch (error) {
+                        setErro('Erro ao gerar VBScript: ' + error.message);
+                    } finally {
+                        setGerando(false);
+                    }
+                }, 1000);
+            };
+
+            // Criar conteúdo VBScript
+            const criarVBScript = () => {
+                let content = `Option Explicit
+
+' ================================
+' GERADO AUTOMATICAMENTE
+' Disparador de Emails Simples
+' ================================
+
+Dim objOutlook, objMail, objFSO
+Dim caminhoAnexos, logFile, emailsEnviados, emailsErro
+Dim fso, logStream, mensagemLog
+
+' Configurações
+caminhoAnexos = "${caminhoAnexos}"
+logFile = "C:\\temp\\log_envio_emails.txt"
+
+' Contadores
+emailsEnviados = 0
+emailsErro = 0
+
+' Log
+Set fso = CreateObject("Scripting.FileSystemObject")
+Set logStream = fso.CreateTextFile(logFile, True)
+mensagemLog = "=== LOG DE ENVIO - " & Now() & " ===" & vbCrLf
+logStream.WriteLine mensagemLog
+logStream.WriteLine "Total de emails: ${contatos.length}" & vbCrLf
+logStream.WriteLine ""
+
+On Error Resume Next
+
+Set objOutlook = CreateObject("Outlook.Application")
+
+If Err.Number <> 0 Then
+    MsgBox "Erro ao abrir Outlook: " & Err.Description, vbCritical
+    WScript.Quit
+End If`;
+
+                contatos.forEach((contato, index) => {
+                    const mensagemPersonalizada = mensagem
+                        .replace(/\{nome\}/g, contato.nome)
+                        .replace(/\{primeiroNome\}/g, contato.primeiroNome)
+                        .replace(/\n/g, vbCrLf)
+                        .replace(/"/g, '""');
+                    
+                    const assuntoPersonalizado = assunto
+                        .replace(/\{nome\}/g, contato.nome)
+                        .replace(/\{primeiroNome\}/g, contato.primeiroNome)
+                        .replace(/"/g, '""');
+
+                    content += `
+
+' Email ${index + 1} - ${contato.nome}
+Set objMail = objOutlook.CreateItem(0)
+objMail.To = "${contato.email}"
+objMail.Subject = "${assuntoPersonalizado}"
+objMail.Body = "${mensagemPersonalizada}"
+
+' Adicionar anexos
+Set objFSO = CreateObject("Scripting.FileSystemObject")
+`;
+
+                    anexos.forEach(anexo => {
+                        content += `If objFSO.FileExists(caminhoAnexos & "\\${anexo.name}") Then
+    objMail.Attachments.Add caminhoAnexos & "\\${anexo.name}"
+    logStream.WriteLine "  ${index + 1}. ${contato.nome} - Anexo: ${anexo.name}"
+End If
+`;
+                    });
+
+                    content += `
+objMail.Send
+If Err.Number = 0 Then
+    emailsEnviados = emailsEnviados + 1
+    logStream.WriteLine "  ${index + 1}. ${contato.nome} - SUCESSO"
+Else
+    emailsErro = emailsErro + 1
+    logStream.WriteLine "  ${index + 1}. ${contato.nome} - ERRO: " & Err.Description
+End If
+On Error GoTo 0
+On Error Resume Next
+WScript.Sleep 2000
+`;
+                });
+
+                content += `
+Set objOutlook = Nothing
+
+' Final
+logStream.WriteLine ""
+logStream.WriteLine "=== RESUMO ==="
+logStream.WriteLine "Enviados com sucesso: " & emailsEnviados
+logStream.WriteLine "Erros: " & emailsErro
+logStream.WriteLine "Fim: " & Now()
+logStream.Close
+
+MsgBox "CONCLUÍDO!" & vbCrLf & vbCrLf & "Enviados: " & emailsEnviados & vbCrLf & "Erros: " & emailsErro & vbCrLf & vbCrLf & "Log salvo em:" & vbCrLf & logFile, vbInformation
+WScript.Quit
+`;
+
+                return content;
+            };
+
+            // Download arquivo
+            const downloadArquivo = (conteudo, nome, tipo) => {
+                const blob = new Blob([conteudo], { type: tipo || 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = nome;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            };
+
+            // Resetar tudo
+            const resetar = () => {
+                if (confirm('Tem certeza que deseja limpar todos os dados?')) {
+                    setContatos([]);
+                    setAssunto('');
+                    setMensagem('Prezado(a) {nome},\n\nSegue em anexo os documentos.\n\nAtenciosamente,\nEquipe');
+                    setAnexos([]);
+                    setCaminhoAnexos('');
+                    setErro('');
+                    setSucesso('');
+                }
+            };
+
+            return (
+                <div className="container">
+                    <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">
+                        📧 Disparador de Emails Simples
+                    </h1>
+
+                    {erro && (
+                        <div className="alert alert-error">
+                            <strong>Erro:</strong> {erro}
+                        </div>
+                    )}
+
+                    {sucesso && (
+                        <div className="alert alert-success">
+                            <strong>Sucesso:</strong> {sucesso}
+                        </div>
+                    )}
+
+                    {/* Configurações */}
+                    <div className="card">
+                        <h2 className="text-xl font-bold mb-4">📋 Contatos</h2>
+                        
+                        <div className="flex gap-4 mb-4">
+                            <button 
+                                onClick={adicionarContatosManualmente}
+                                className="btn btn-primary"
+                            >
+                                ➕ Adicionar Manualmente
+                            </button>
+                            <button 
+                                onClick={() => fileInputRef.current?.click()}
+                                className="btn btn-secondary"
+                            >
+                                📁 Carregar CSV
+                            </button>
+                        </div>
+                        
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".csv"
+                            onChange={uploadArquivo}
+                            className="hidden"
+                        />
+
+                        {contatos.length > 0 && (
+                            <div>
+                                <h3 className="font-semibold mb-2">Contatos Carregados ({contatos.length}):</h3>
+                                <div className="max-h-48 overflow-y-auto">
+                                    {contatos.map((contato, index) => (
+                                        <div key={index} className="contato-item">
+                                            <strong>{contato.nome}</strong> - {contato.email}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Email */}
+                    <div className="card">
+                        <h2 className="text-xl font-bold mb-4">✉️ Configuração do Email</h2>
+                        
+                        <div className="mb-4">
+                            <label className="block font-semibold mb-2">Assunto:</label>
+                            <input
+                                type="text"
+                                className="input"
+                                placeholder="Ex: Documentos para {nome}"
+                                value={assunto}
+                                onChange={(e) => setAssunto(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="mb-4">
+                            <label className="block font-semibold mb-2">Mensagem:</label>
+                            <textarea
+                                className="textarea"
+                                placeholder="Digite a mensagem do email. Use {nome} e {primeiroNome} como placeholders"
+                                value={mensagem}
+                                onChange={(e) => setMensagem(e.target.value)}
+                            />
+                            <small className="text-gray-600">
+                                Placeholders disponíveis: {'{'}nome{'}'}, {'{'}primeiroNome{'}'}
+                            </small>
+                        </div>
+                    </div>
+
+                    {/* Anexos */}
+                    <div className="card">
+                        <h2 className="text-xl font-bold mb-4">📎 Anexos</h2>
+                        
+                        <div className="mb-4">
+                            <label className="block font-semibold mb-2">Caminho da pasta dos anexos:</label>
+                            <input
+                                type="text"
+                                className="input"
+                                placeholder="Ex: C:\\Users\\João\\Documents\\Anexos"
+                                value={caminhoAnexos}
+                                onChange={(e) => setCaminhoAnexos(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="mb-4">
+                            <button 
+                                onClick={() => anexoInputRef.current?.click()}
+                                className="btn btn-secondary"
+                            >
+                                📁 Selecionar Arquivos
+                            </button>
+                            <input
+                                ref={anexoInputRef}
+                                type="file"
+                                multiple
+                                onChange={adicionarAnexos}
+                                className="hidden"
+                            />
+                        </div>
+
+                        {anexos.length > 0 && (
+                            <div>
+                                <h3 className="font-semibold mb-2">Arquivos Selecionados:</h3>
+                                <div className="max-h-32 overflow-y-auto">
+                                    {anexos.map((anexo, index) => (
+                                        <div key={index} className="contato-item">
+                                            {anexo.name} ({(anexo.size / 1024).toFixed(1)} KB)
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Ações */}
+                    <div className="card">
+                        <h2 className="text-xl font-bold mb-4">🚀 Ações</h2>
+                        
+                        <div className="flex gap-4">
+                            <button
+                                onClick={gerarVBScript}
+                                disabled={gerando || contatos.length === 0}
+                                className="btn btn-success flex-1"
+                            >
+                                {gerando ? '⏳ Gerando...' : '⚡ Gerar VBScript'}
+                            </button>
+                            
+                            <button
+                                onClick={resetar}
+                                className="btn btn-secondary"
+                            >
+                                🔄 Limpar Tudo
+                            </button>
+                        </div>
+
+                        <div className="mt-4 text-sm text-gray-600 bg-gray-50 p-4 rounded">
+                            <h3 className="font-bold mb-2">Como usar:</h3>
+                            <ol className="list-decimal list-inside space-y-1">
+                                <li>Adicione os contatos (manual ou CSV)</li>
+                                <li>Configure assunto e mensagem</li>
+                                <li>Selecione os anexos</li>
+                                <li>Clique em "Gerar VBScript"</li>
+                                <li>Baixe o arquivo: <strong>enviar_emails.vbs</strong></li>
+                                <li>Execute clicando DUAS VEZES no arquivo .vbs</li>
+                                <li>Certifique-se que o Outlook está instalado</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
