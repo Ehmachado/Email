@@ -3,480 +3,545 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Disparador de Emails Simples</title>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Somador de Planilhas - Versão Aprimorada</title>
+    <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
-        .btn-primary { background: #3b82f6; color: white; }
-        .btn-primary:hover { background: #2563eb; }
-        .btn-success { background: #10b981; color: white; }
-        .btn-success:hover { background: #059669; }
-        .btn-secondary { background: #6b7280; color: white; }
-        .btn-secondary:hover { background: #4b5563; }
-        .input { width: 100%; padding: 12px; border: 2px solid #d1d5db; border-radius: 8px; }
-        .textarea { width: 100%; padding: 12px; border: 2px solid #d1d5db; border-radius: 8px; min-height: 120px; }
-        .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; }
-        .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
-        .alert-success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
-        .contato-item { background: #f8fafc; padding: 16px; border-radius: 8px; margin-bottom: 8px; border: 1px solid #e2e8f0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); overflow: hidden; }
+        .header { background: linear-gradient(45deg, #4CAF50, #45a049); color: white; padding: 30px; text-align: center; }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; font-weight: 700; }
+        .header p { font-size: 1.1em; opacity: 0.9; }
+        .content { padding: 30px; }
+        .upload-section { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px; }
+        .upload-box { background: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 15px; padding: 30px; text-align: center; transition: all 0.3s ease; position: relative; }
+        .upload-box:hover { border-color: #4CAF50; background: #f0f9ff; }
+        .upload-box.dragover { border-color: #4CAF50; background: #e8f5e8; transform: scale(1.02); }
+        .upload-box h3 { color: #333; margin-bottom: 15px; font-size: 1.3em; }
+        .file-input { display: none; }
+        .upload-btn { background: #4CAF50; color: white; border: none; padding: 12px 25px; border-radius: 25px; cursor: pointer; font-size: 1em; transition: all 0.3s ease; margin: 10px 0; }
+        .upload-btn:hover { background: #45a049; transform: translateY(-2px); }
+        .file-info { margin-top: 15px; padding: 10px; background: #e3f2fd; border-radius: 8px; font-size: 0.9em; color: #1565c0; }
+        .controls { display: flex; gap: 15px; justify-content: center; margin: 30px 0; flex-wrap: wrap; }
+        .btn { padding: 15px 30px; border: none; border-radius: 25px; cursor: pointer; font-size: 1em; font-weight: 600; transition: all 0.3s ease; min-width: 200px; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+        .btn-primary { background: #4CAF50; color: white; }
+        .btn-primary:hover:not(:disabled) { background: #45a049; transform: translateY(-2px); }
+        .btn-secondary { background: #2196F3; color: white; }
+        .btn-secondary:hover:not(:disabled) { background: #1976D2; transform: translateY(-2px); }
+        .status-section { margin: 20px 0; padding: 20px; border-radius: 10px; display: none; }
+        .status-info { background: #e3f2fd; border: 1px solid #bbdefb; color: #1565c0; }
+        .status-error { background: #ffebee; border: 1px solid #ffcdd2; color: #c62828; }
+        .status-success { background: #e8f5e8; border: 1px solid #c8e6c9; color: #2e7d32; }
+        .results-section { margin-top: 30px; display: none; }
+        .results-header { background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+        .results-header h3 { color: #333; margin-bottom: 10px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
+        .stat-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; }
+        .stat-number { font-size: 2em; font-weight: bold; color: #4CAF50; }
+        .stat-label { color: #666; margin-top: 5px; }
+        .table-container { overflow-x: auto; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .results-table { width: 100%; border-collapse: collapse; background: white; }
+        .results-table th { background: #4CAF50; color: white; padding: 15px; text-align: left; font-weight: 600; }
+        .results-table td { padding: 12px 15px; border-bottom: 1px solid #eee; }
+        .results-table tbody tr:hover { background: #f8f9fa; }
+        .action-buttons { margin-top: 20px; display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; }
+        .loading { display: none; text-align: center; padding: 20px; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #4CAF50; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .error-details { background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 15px; margin: 15px 0; display: none; }
+        .error-details h4 { color: #856404; margin-bottom: 10px; }
+        .error-list { color: #856404; font-size: 0.9em; }
+        @media (max-width: 768px) { .upload-section { grid-template-columns: 1fr; gap: 20px; } .header h1 { font-size: 2em; } .stats { grid-template-columns: 1fr; } .controls { flex-direction: column; align-items: center; } }
     </style>
 </head>
-<body class="bg-gray-100">
-    <div id="root"></div>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Somador de Planilhas</h1>
+            <p>Ferramenta para somar valores das colunas G (Rlz.) e R (D-0) de duas planilhas Excel</p>
+        </div>
 
-    <script type="text/babel">
-        const { useState, useRef } = React;
-
-        function App() {
-            const [contatos, setContatos] = useState([]);
-            const [assunto, setAssunto] = useState('');
-            const [mensagem, setMensagem] = useState('Prezado(a) {nome},\n\nSegue em anexo os documentos.\n\nAtenciosamente,\nEquipe');
-            const [anexos, setAnexos] = useState([]);
-            const [caminhoAnexos, setCaminhoAnexos] = useState('');
-            const [erro, setErro] = useState('');
-            const [sucesso, setSucesso] = useState('');
-            const [gerando, setGerando] = useState(false);
-            
-            const fileInputRef = useRef(null);
-            const anexoInputRef = useRef(null);
-
-            // Função para processar CSV manualmente
-            const processarCSV = (texto) => {
-                try {
-                    const linhas = texto.split('\n').filter(linha => linha.trim());
-                    if (linhas.length < 2) throw new Error('CSV deve ter pelo menos 2 linhas');
-                    
-                    const cabecalho = linhas[0].split(',').map(c => c.trim());
-                    const novosContatos = [];
-                    
-                    for (let i = 1; i < linhas.length; i++) {
-                        const valores = linhas[i].split(',');
-                        if (valores.length < 2) continue;
-                        
-                        const nome = valores[0] ? valores[0].trim() : '';
-                        const email = valores[1] ? valores[1].trim() : '';
-                        
-                        if (nome && email && email.includes('@')) {
-                            const primeiroNome = nome.split(' ')[0];
-                            novosContatos.push({
-                                nome,
-                                email,
-                                primeiroNome,
-                                anexosAssociados: []
-                            });
-                        }
-                    }
-                    
-                    return novosContatos;
-                } catch (error) {
-                    throw new Error('Erro ao processar CSV: ' + error.message);
-                }
-            };
-
-            // Função para ler arquivo
-            const lerArquivo = (file) => {
-                return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => resolve(e.target.result);
-                    reader.onerror = (e) => reject(new Error('Erro ao ler arquivo'));
-                    reader.readAsText(file, 'utf-8');
-                });
-            };
-
-            // Adicionar contatos manualmente
-            const adicionarContatosManualmente = () => {
-                const texto = prompt('Cole os contatos no formato:\nNome,Email\nJoão Silva,joao@email.com\nMaria Santos,maria@email.com');
-                if (!texto) return;
-                
-                try {
-                    const novos = processarCSV(texto);
-                    if (novos.length === 0) throw new Error('Nenhum contato válido encontrado');
-                    setContatos(novos);
-                    setSucesso(`${novos.length} contatos adicionados!`);
-                } catch (error) {
-                    setErro(error.message);
-                }
-            };
-
-            // Upload arquivo CSV
-            const uploadArquivo = async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                
-                setErro('');
-                try {
-                    const conteudo = await lerArquivo(file);
-                    const novos = processarCSV(conteudo);
-                    if (novos.length === 0) throw new Error('Nenhum contato válido encontrado no arquivo');
-                    setContatos(novos);
-                    setSucesso(`${novos.length} contatos carregados do arquivo!`);
-                } catch (error) {
-                    setErro(error.message);
-                }
-                
-                // Limpar input
-                e.target.value = '';
-            };
-
-            // Adicionar anexos
-            const adicionarAnexos = (e) => {
-                const files = Array.from(e.target.files);
-                if (files.length === 0) return;
-                
-                const novosAnexos = files.map(file => ({
-                    name: file.name,
-                    size: file.size
-                }));
-                
-                setAnexos(prev => [...prev, ...novosAnexos]);
-                setSucesso(`${novosAnexos.length} arquivo(s) adicionado(s)!`);
-            };
-
-            // Gerar VBScript
-            const gerarVBScript = () => {
-                setErro('');
-                if (contatos.length === 0) {
-                    setErro('Adicione pelo menos um contato');
-                    return;
-                }
-                
-                if (!assunto.trim()) {
-                    setErro('Digite o assunto do email');
-                    return;
-                }
-                
-                if (!caminhoAnexos.trim()) {
-                    setErro('Digite o caminho da pasta dos anexos');
-                    return;
-                }
-                
-                if (anexos.length === 0) {
-                    if (!confirm('Nenhum anexo foi selecionado. Continuar?')) {
-                        return;
-                    }
-                }
-                
-                setGerando(true);
-                
-                setTimeout(() => {
-                    try {
-                        const vbsContent = criarVBScript();
-                        downloadArquivo(vbsContent, 'enviar_emails.vbs', 'text/plain');
-                        setSucesso('Arquivo VBScript gerado com sucesso!');
-                    } catch (error) {
-                        setErro('Erro ao gerar VBScript: ' + error.message);
-                    } finally {
-                        setGerando(false);
-                    }
-                }, 1000);
-            };
-
-            // Criar conteúdo VBScript
-            const criarVBScript = () => {
-                let content = `Option Explicit
-
-' ================================
-' GERADO AUTOMATICAMENTE
-' Disparador de Emails Simples
-' ================================
-
-Dim objOutlook, objMail, objFSO
-Dim caminhoAnexos, logFile, emailsEnviados, emailsErro
-Dim fso, logStream, mensagemLog
-
-' Configurações
-caminhoAnexos = "${caminhoAnexos}"
-logFile = "C:\\temp\\log_envio_emails.txt"
-
-' Contadores
-emailsEnviados = 0
-emailsErro = 0
-
-' Log
-Set fso = CreateObject("Scripting.FileSystemObject")
-Set logStream = fso.CreateTextFile(logFile, True)
-mensagemLog = "=== LOG DE ENVIO - " & Now() & " ===" & vbCrLf
-logStream.WriteLine mensagemLog
-logStream.WriteLine "Total de emails: ${contatos.length}" & vbCrLf
-logStream.WriteLine ""
-
-On Error Resume Next
-
-Set objOutlook = CreateObject("Outlook.Application")
-
-If Err.Number <> 0 Then
-    MsgBox "Erro ao abrir Outlook: " & Err.Description, vbCritical
-    WScript.Quit
-End If`;
-
-                contatos.forEach((contato, index) => {
-                    const mensagemPersonalizada = mensagem
-                        .replace(/\{nome\}/g, contato.nome)
-                        .replace(/\{primeiroNome\}/g, contato.primeiroNome)
-                        .replace(/\n/g, vbCrLf)
-                        .replace(/"/g, '""');
-                    
-                    const assuntoPersonalizado = assunto
-                        .replace(/\{nome\}/g, contato.nome)
-                        .replace(/\{primeiroNome\}/g, contato.primeiroNome)
-                        .replace(/"/g, '""');
-
-                    content += `
-
-' Email ${index + 1} - ${contato.nome}
-Set objMail = objOutlook.CreateItem(0)
-objMail.To = "${contato.email}"
-objMail.Subject = "${assuntoPersonalizado}"
-objMail.Body = "${mensagemPersonalizada}"
-
-' Adicionar anexos
-Set objFSO = CreateObject("Scripting.FileSystemObject")
-`;
-
-                    anexos.forEach(anexo => {
-                        content += `If objFSO.FileExists(caminhoAnexos & "\\${anexo.name}") Then
-    objMail.Attachments.Add caminhoAnexos & "\\${anexo.name}"
-    logStream.WriteLine "  ${index + 1}. ${contato.nome} - Anexo: ${anexo.name}"
-End If
-`;
-                    });
-
-                    content += `
-objMail.Send
-If Err.Number = 0 Then
-    emailsEnviados = emailsEnviados + 1
-    logStream.WriteLine "  ${index + 1}. ${contato.nome} - SUCESSO"
-Else
-    emailsErro = emailsErro + 1
-    logStream.WriteLine "  ${index + 1}. ${contato.nome} - ERRO: " & Err.Description
-End If
-On Error GoTo 0
-On Error Resume Next
-WScript.Sleep 2000
-`;
-                });
-
-                content += `
-Set objOutlook = Nothing
-
-' Final
-logStream.WriteLine ""
-logStream.WriteLine "=== RESUMO ==="
-logStream.WriteLine "Enviados com sucesso: " & emailsEnviados
-logStream.WriteLine "Erros: " & emailsErro
-logStream.WriteLine "Fim: " & Now()
-logStream.Close
-
-MsgBox "CONCLUÍDO!" & vbCrLf & vbCrLf & "Enviados: " & emailsEnviados & vbCrLf & "Erros: " & emailsErro & vbCrLf & vbCrLf & "Log salvo em:" & vbCrLf & logFile, vbInformation
-WScript.Quit
-`;
-
-                return content;
-            };
-
-            // Download arquivo
-            const downloadArquivo = (conteudo, nome, tipo) => {
-                const blob = new Blob([conteudo], { type: tipo || 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = nome;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            };
-
-            // Resetar tudo
-            const resetar = () => {
-                if (confirm('Tem certeza que deseja limpar todos os dados?')) {
-                    setContatos([]);
-                    setAssunto('');
-                    setMensagem('Prezado(a) {nome},\n\nSegue em anexo os documentos.\n\nAtenciosamente,\nEquipe');
-                    setAnexos([]);
-                    setCaminhoAnexos('');
-                    setErro('');
-                    setSucesso('');
-                }
-            };
-
-            return (
-                <div className="container">
-                    <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">
-                        📧 Disparador de Emails Simples
-                    </h1>
-
-                    {erro && (
-                        <div className="alert alert-error">
-                            <strong>Erro:</strong> {erro}
-                        </div>
-                    )}
-
-                    {sucesso && (
-                        <div className="alert alert-success">
-                            <strong>Sucesso:</strong> {sucesso}
-                        </div>
-                    )}
-
-                    {/* Configurações */}
-                    <div className="card">
-                        <h2 className="text-xl font-bold mb-4">📋 Contatos</h2>
-                        
-                        <div className="flex gap-4 mb-4">
-                            <button 
-                                onClick={adicionarContatosManualmente}
-                                className="btn btn-primary"
-                            >
-                                ➕ Adicionar Manualmente
-                            </button>
-                            <button 
-                                onClick={() => fileInputRef.current?.click()}
-                                className="btn btn-secondary"
-                            >
-                                📁 Carregar CSV
-                            </button>
-                        </div>
-                        
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept=".csv"
-                            onChange={uploadArquivo}
-                            className="hidden"
-                        />
-
-                        {contatos.length > 0 && (
-                            <div>
-                                <h3 className="font-semibold mb-2">Contatos Carregados ({contatos.length}):</h3>
-                                <div className="max-h-48 overflow-y-auto">
-                                    {contatos.map((contato, index) => (
-                                        <div key={index} className="contato-item">
-                                            <strong>{contato.nome}</strong> - {contato.email}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Email */}
-                    <div className="card">
-                        <h2 className="text-xl font-bold mb-4">✉️ Configuração do Email</h2>
-                        
-                        <div className="mb-4">
-                            <label className="block font-semibold mb-2">Assunto:</label>
-                            <input
-                                type="text"
-                                className="input"
-                                placeholder="Ex: Documentos para {nome}"
-                                value={assunto}
-                                onChange={(e) => setAssunto(e.target.value)}
-                            />
-                        </div>
-
-                        <div className="mb-4">
-                            <label className="block font-semibold mb-2">Mensagem:</label>
-                            <textarea
-                                className="textarea"
-                                placeholder="Digite a mensagem do email. Use {nome} e {primeiroNome} como placeholders"
-                                value={mensagem}
-                                onChange={(e) => setMensagem(e.target.value)}
-                            />
-                            <small className="text-gray-600">
-                                Placeholders disponíveis: {'{'}nome{'}'}, {'{'}primeiroNome{'}'}
-                            </small>
-                        </div>
-                    </div>
-
-                    {/* Anexos */}
-                    <div className="card">
-                        <h2 className="text-xl font-bold mb-4">📎 Anexos</h2>
-                        
-                        <div className="mb-4">
-                            <label className="block font-semibold mb-2">Caminho da pasta dos anexos:</label>
-                            <input
-                                type="text"
-                                className="input"
-                                placeholder="Ex: C:\\Users\\João\\Documents\\Anexos"
-                                value={caminhoAnexos}
-                                onChange={(e) => setCaminhoAnexos(e.target.value)}
-                            />
-                        </div>
-
-                        <div className="mb-4">
-                            <button 
-                                onClick={() => anexoInputRef.current?.click()}
-                                className="btn btn-secondary"
-                            >
-                                📁 Selecionar Arquivos
-                            </button>
-                            <input
-                                ref={anexoInputRef}
-                                type="file"
-                                multiple
-                                onChange={adicionarAnexos}
-                                className="hidden"
-                            />
-                        </div>
-
-                        {anexos.length > 0 && (
-                            <div>
-                                <h3 className="font-semibold mb-2">Arquivos Selecionados:</h3>
-                                <div className="max-h-32 overflow-y-auto">
-                                    {anexos.map((anexo, index) => (
-                                        <div key={index} className="contato-item">
-                                            {anexo.name} ({(anexo.size / 1024).toFixed(1)} KB)
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Ações */}
-                    <div className="card">
-                        <h2 className="text-xl font-bold mb-4">🚀 Ações</h2>
-                        
-                        <div className="flex gap-4">
-                            <button
-                                onClick={gerarVBScript}
-                                disabled={gerando || contatos.length === 0}
-                                className="btn btn-success flex-1"
-                            >
-                                {gerando ? '⏳ Gerando...' : '⚡ Gerar VBScript'}
-                            </button>
-                            
-                            <button
-                                onClick={resetar}
-                                className="btn btn-secondary"
-                            >
-                                🔄 Limpar Tudo
-                            </button>
-                        </div>
-
-                        <div className="mt-4 text-sm text-gray-600 bg-gray-50 p-4 rounded">
-                            <h3 className="font-bold mb-2">Como usar:</h3>
-                            <ol className="list-decimal list-inside space-y-1">
-                                <li>Adicione os contatos (manual ou CSV)</li>
-                                <li>Configure assunto e mensagem</li>
-                                <li>Selecione os anexos</li>
-                                <li>Clique em "Gerar VBScript"</li>
-                                <li>Baixe o arquivo: <strong>enviar_emails.vbs</strong></li>
-                                <li>Execute clicando DUAS VEZES no arquivo .vbs</li>
-                                <li>Certifique-se que o Outlook está instalado</li>
-                            </ol>
-                        </div>
-                    </div>
+        <div class="content">
+            <div class="upload-section">
+                <div class="upload-box" id="uploadBox1">
+                    <h3>📊 Planilha 1</h3>
+                    <input type="file" id="file1" class="file-input" accept=".xlsx,.xls">
+                    <button class="upload-btn" onclick="document.getElementById('file1').click()">Selecionar Arquivo</button>
+                    <div class="file-info" id="fileInfo1">Nenhum arquivo selecionado</div>
                 </div>
-            );
+                <div class="upload-box" id="uploadBox2">
+                    <h3>📈 Planilha 2</h3>
+                    <input type="file" id="file2" class="file-input" accept=".xlsx,.xls">
+                    <button class="upload-btn" onclick="document.getElementById('file2').click()">Selecionar Arquivo</button>
+                    <div class="file-info" id="fileInfo2">Nenhum arquivo selecionado</div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button class="btn btn-secondary" id="verifyBtn" onclick="verificarErros()" disabled>🔍 Verificar Erros</button>
+                <button class="btn btn-primary" id="processBtn" onclick="processarPlanilhas()" disabled>🔢 Processar e Somar</button>
+            </div>
+
+            <div id="statusSection" class="status-section">
+                <div id="statusMessage"></div>
+            </div>
+
+            <div id="errorDetails" class="error-details">
+                <h4>📋 Detalhes da Verificação</h4>
+                <div id="errorList" class="error-list"></div>
+            </div>
+
+            <div id="loadingSection" class="loading">
+                <div class="spinner"></div>
+                <p>Processando planilhas...</p>
+            </div>
+
+            <div id="resultsSection" class="results-section">
+                <div class="results-header">
+                    <h3>📊 Resultados da Soma</h3>
+                    <div class="stats" id="statsContainer"></div>
+                </div>
+
+                <div class="table-container">
+                    <table class="results-table" id="resultsTable">
+                        <thead>
+                            <tr>
+                                <th>Prefixo (A)</th>
+                                <th>Dependência (B)</th>
+                                <th>Carteira (D)</th>
+                                <th>Tipo Carteira (E)</th>
+                                <th>Coluna G (Rlz.)</th>
+                                <th>Coluna R (D-0)</th>
+                                <th>Total Soma</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsBody"></tbody>
+                    </table>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="copiarTabela()">📋 Copiar Tabela</button>
+                    <button class="btn btn-secondary" onclick="exportarExcel()">📥 Exportar para Excel</button>
+                    <button class="btn btn-secondary" onclick="limparResultados()">🗑️ Limpar Resultados</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variáveis globais
+        let planilha1Data = null;
+        let planilha2Data = null;
+        let file1Name = '';
+        let file2Name = '';
+        let resultadosOriginais = [];
+        let errosEncontrados = [];
+
+        // Drag and drop
+        setupDragAndDrop();
+        function setupDragAndDrop() {
+            const uploadBoxes = document.querySelectorAll('.upload-box');
+            uploadBoxes.forEach(box => {
+                box.addEventListener('dragover', (e) => { e.preventDefault(); box.classList.add('dragover'); });
+                box.addEventListener('dragleave', (e) => { e.preventDefault(); box.classList.remove('dragover'); });
+                box.addEventListener('drop', (e) => {
+                    e.preventDefault(); box.classList.remove('dragover');
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        const input = box.querySelector('.file-input');
+                        input.files = files;
+                        handleFileSelect(input, box.id);
+                    }
+                });
+            });
         }
 
-        ReactDOM.render(<App />, document.getElementById('root'));
+        document.getElementById('file1').addEventListener('change', (e) => handleFileSelect(e.target, 'uploadBox1'));
+        document.getElementById('file2').addEventListener('change', (e) => handleFileSelect(e.target, 'uploadBox2'));
+
+        function handleFileSelect(input, boxId) {
+            const file = input.files[0];
+            const fileInfo = document.getElementById('fileInfo' + boxId.slice(-1));
+            if (file) {
+                fileInfo.innerHTML = `<strong>📁 ${file.name}</strong><br>Tamanho: ${formatFileSize(file.size)}<br>Tipo: ${file.type || 'Excel'}`;
+                readExcelFile(file, parseInt(boxId.slice(-1)));
+            } else {
+                fileInfo.textContent = 'Nenhum arquivo selecionado';
+            }
+        }
+
+        // =========================================================
+        // FIX: Ler por LETRAS (A,B,D,E,G,R) ignorando cabeçalho mesclado
+        // =========================================================
+        function readExcelFile(file, planilhaNum) {
+            showStatus('Lendo arquivo...', 'info');
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+
+                    // Monta um array "tipo header:1" só com os campos necessários,
+                    // mas puxando por letra, e começando 2 linhas após o topo.
+                    const jsonData = buildMinimalJsonFromSheet(worksheet); // FIX
+
+                    if (planilhaNum === 1) {
+                        planilha1Data = jsonData;
+                        file1Name = file.name;
+                    } else {
+                        planilha2Data = jsonData;
+                        file2Name = file.name;
+                    }
+
+                    showStatus(`Arquivo ${file.name} carregado com sucesso!`, 'success');
+                    updateButtonStates();
+
+                } catch (error) {
+                    showError(`Erro ao ler o arquivo ${file.name}: ${error.message}`);
+                    if (planilhaNum === 1) planilha1Data = null; else planilha2Data = null;
+                }
+            };
+
+            reader.onerror = function() { showError(`Erro ao carregar o arquivo ${file.name}`); };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // FIX: Constrói linhas [A,B,_,D,E,_,G, ... , R na posição 17] lendo por letras
+        function buildMinimalJsonFromSheet(ws) {
+            const ref = ws['!ref'];
+            if (!ref) return [];
+            const range = XLSX.utils.decode_range(ref);
+
+            const rows = [];
+            const dataStartRow = range.s.r + 2; // pula 2 linhas de cabeçalho, como antes
+
+            for (let r = dataStartRow; r <= range.e.r; r++) {
+                const A = getCell(ws, 'A', r);
+                const B = getCell(ws, 'B', r);
+                const D = getCell(ws, 'D', r);
+                const E = getCell(ws, 'E', r);
+                const G = getCell(ws, 'G', r);
+                const R = getCell(ws, 'R', r);
+
+                const hasAny =
+                    (A !== null && A !== undefined && A !== '') ||
+                    (B !== null && B !== undefined && B !== '') ||
+                    (D !== null && D !== undefined && D !== '') ||
+                    (E !== null && E !== undefined && E !== '') ||
+                    (G !== null && G !== undefined && G !== '') ||
+                    (R !== null && R !== undefined && R !== '');
+
+                if (!hasAny) continue; // linha vazia
+
+                // Monta no formato de array compatível com o processador atual
+                const arr = [];
+                arr[0] = A;          // A
+                arr[1] = B;          // B
+                arr[3] = D;          // D
+                arr[4] = E;          // E
+                arr[6] = toNumberBR(G); // G (Rlz.)
+                arr[17] = toNumberBR(R); // R (D-0)
+
+                rows.push(arr);
+            }
+            return rows;
+        }
+
+        // FIX: leitura célula por letra + linha (0-based row index vindo do decode_range)
+        function getCell(ws, colLetter, r0based) {
+            const addr = XLSX.utils.encode_cell({ c: XLSX.utils.decode_col(colLetter), r: r0based });
+            const cell = ws[addr];
+            return cell ? cell.v : null;
+        }
+
+        // FIX: Converte strings "pt-BR" para número (ex.: "1.234,56" -> 1234.56)
+        function toNumberBR(val) {
+            if (val === null || val === undefined || val === '') return 0;
+            if (typeof val === 'number') return val;
+            if (typeof val !== 'string') return Number(val) || 0;
+
+            // remove espaços
+            let s = val.trim();
+            // se contiver milhares e decimais no padrão BR
+            if (/^\d{1,3}(\.\d{3})*,\d{1,}$/.test(s) || /^\d{1,3}(\.\d{3})+$/.test(s) || /^\d+,\d+$/.test(s)) {
+                s = s.replace(/\./g, '').replace(',', '.');
+                const n = Number(s);
+                return isNaN(n) ? 0 : n;
+            }
+            // tenta parse direto
+            const n = Number(s);
+            return isNaN(n) ? 0 : n;
+        }
+        // =========================================================
+
+        function verificarErros() {
+            errosEncontrados = [];
+            const errorDetails = document.getElementById('errorDetails');
+            const errorList = document.getElementById('errorList');
+
+            errorList.innerHTML = '';
+            errorDetails.style.display = 'block';
+
+            let infoText = '<h4>📋 Resultado da Verificação</h4>';
+
+            if (!planilha1Data || !planilha2Data) {
+                errosEncontrados.push('Ambas as planilhas devem ser carregadas');
+                infoText += '<p>❌ <strong>Erro:</strong> Uma ou ambas as planilhas não foram carregadas.</p>';
+            } else {
+                infoText += '<p>✅ <strong>Sucesso:</strong> Ambas as planilhas foram carregadas.</p>';
+
+                if (planilha1Data.length < 1) {
+                    errosEncontrados.push('Planilha 1 está vazia');
+                    infoText += '<p>❌ <strong>Erro:</strong> Planilha 1 não contém dados.</p>';
+                }
+                if (planilha2Data.length < 1) {
+                    errosEncontrados.push('Planilha 2 está vazia');
+                    infoText += '<p>❌ <strong>Erro:</strong> Planilha 2 não contém dados.</p>';
+                }
+
+                // Checagem mínima: garantir que preenchamos ao menos G(6) e R(17)
+                const p1TemColunas = planilha1Data.some(row => row && (row[6] !== undefined || row[17] !== undefined));
+                const p2TemColunas = planilha2Data.some(row => row && (row[6] !== undefined || row[17] !== undefined));
+
+                if (!p1TemColunas) {
+                    errosEncontrados.push('Planilha 1 sem valores nas colunas G ou R');
+                    infoText += '<p>❌ <strong>Erro:</strong> Planilha 1 sem valores em G/R.</p>';
+                }
+                if (!p2TemColunas) {
+                    errosEncontrados.push('Planilha 2 sem valores nas colunas G ou R');
+                    infoText += '<p>❌ <strong>Erro:</strong> Planilha 2 sem valores em G/R.</p>';
+                }
+
+                if (planilha1Data.length > 0) {
+                    const dadosG1 = planilha1Data.filter(row => row && row[6] != null && row[6] !== '').length;
+                    const dadosR1 = planilha1Data.filter(row => row && row[17] != null && row[17] !== '').length;
+                    infoText += `<p>📊 <strong>Planilha 1:</strong> ${dadosG1} registros na Coluna G, ${dadosR1} registros na Coluna R</p>`;
+                }
+                if (planilha2Data.length > 0) {
+                    const dadosG2 = planilha2Data.filter(row => row && row[6] != null && row[6] !== '').length;
+                    const dadosR2 = planilha2Data.filter(row => row && row[17] != null && row[17] !== '').length;
+                    infoText += `<p>📊 <strong>Planilha 2:</strong> ${dadosG2} registros na Coluna G, ${dadosR2} registros na Coluna R</p>`;
+                }
+            }
+
+            if (errosEncontrados.length === 0) {
+                infoText += '<p>✅ <strong>Conclusão:</strong> Nenhum erro encontrado! As planilhas estão prontas para processamento.</p>';
+            } else {
+                infoText += '<p>❌ <strong>Conclusão:</strong> foram encontrados erros que impedem o processamento.</p><ul>';
+                errosEncontrados.forEach(erro => { infoText += `<li>${erro}</li>`; });
+                infoText += '</ul>';
+            }
+
+            errorList.innerHTML = infoText;
+            showStatus('Verificação concluída!', errosEncontrados.length === 0 ? 'success' : 'error');
+        }
+
+        function processarPlanilhas() {
+            if (errosEncontrados.length > 0) {
+                showError('Corrija os erros antes de processar as planilhas.');
+                return;
+            }
+            showLoading(true);
+            setTimeout(() => {
+                try {
+                    const resultado = processarDados();
+                    resultadosOriginais = resultado;
+                    exibirResultados(resultado);
+                    showStatus('Processamento concluído com sucesso!', 'success');
+                } catch (error) {
+                    showError(`Erro durante o processamento: ${error.message}`);
+                } finally {
+                    showLoading(false);
+                }
+            }, 100);
+        }
+
+        function processarDados() {
+            const resultado = [];
+            const dadosProcessados = new Map();
+
+            // Planilha 1
+            planilha1Data.forEach((row) => {
+                if (row) {
+                    const a = row[0]; // A
+                    const b = row[1]; // B
+                    const d = row[3]; // D
+                    const e = row[4]; // E
+                    const g = toNumberBR(row[6]);   // G (Rlz.)
+                    const r = toNumberBR(row[17]);  // R (D-0)
+
+                    if (a != null && b != null && d != null && e != null) {
+                        const chave = `${a}|${b}|${d}|${e}`;
+                        dadosProcessados.set(chave, { a, b, d, e, g, r });
+                    }
+                }
+            });
+
+            // Planilha 2 (somar)
+            planilha2Data.forEach((row) => {
+                if (row) {
+                    const a = row[0];
+                    const b = row[1];
+                    const d = row[3];
+                    const e = row[4];
+                    const g = toNumberBR(row[6]);
+                    const r = toNumberBR(row[17]);
+
+                    if (a != null && b != null && d != null && e != null) {
+                        const chave = `${a}|${b}|${d}|${e}`;
+                        if (dadosProcessados.has(chave)) {
+                            const item = dadosProcessados.get(chave);
+                            item.g += g;
+                            item.r += r;
+                        } else {
+                            dadosProcessados.set(chave, { a, b, d, e, g, r });
+                        }
+                    }
+                }
+            });
+
+            dadosProcessados.forEach(item => {
+                resultado.push({ ...item, total: item.g + item.r });
+            });
+
+            return resultado.sort((a, b) => {
+                if (a.a !== b.a) return (Number(a.a) || 0) - (Number(b.a) || 0);
+                return String(a.b).localeCompare(String(b.b));
+            });
+        }
+
+        function exibirResultados(resultado) {
+            const tbody = document.getElementById('resultsBody');
+            const statsContainer = document.getElementById('statsContainer');
+            const resultsSection = document.getElementById('resultsSection');
+
+            tbody.innerHTML = '';
+
+            let totalRegistros = resultado.length;
+            let totalG = 0;
+            let totalR = 0;
+            let totalGeral = 0;
+
+            resultado.forEach(item => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${item.a || ''}</td>
+                    <td>${item.b || ''}</td>
+                    <td>${item.d || ''}</td>
+                    <td>${item.e || ''}</td>
+                    <td>${formatNumber(item.g)}</td>
+                    <td>${formatNumber(item.r)}</td>
+                    <td><strong>${formatNumber(item.total)}</strong></td>
+                `;
+                totalG += item.g;
+                totalR += item.r;
+                totalGeral += item.total;
+            });
+
+            statsContainer.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number">${totalRegistros}</div>
+                    <div class="stat-label">Registros Processados</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${formatNumber(totalG)}</div>
+                    <div class="stat-label">Total Coluna G</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${formatNumber(totalR)}</div>
+                    <div class="stat-label">Total Coluna R</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${formatNumber(totalGeral)}</div>
+                    <div class="stat-label">Total Geral</div>
+                </div>
+            `;
+            resultsSection.style.display = 'block';
+        }
+
+        function copiarTabela() {
+            const table = document.getElementById('resultsTable');
+            const rows = table.querySelectorAll('tr');
+            let clipboardData = '';
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td, th');
+                const rowData = Array.from(cells).map(cell => cell.textContent).join('\t');
+                clipboardData += rowData + '\n';
+            });
+            navigator.clipboard.writeText(clipboardData)
+                .then(() => showStatus('Tabela copiada para a área de transferência!', 'success'))
+                .catch(() => showError('Erro ao copiar tabela. Tente novamente.'));
+        }
+
+        function exportarExcel() {
+            if (resultadosOriginais.length === 0) {
+                showError('Nenhum resultado para exportar.');
+                return;
+            }
+            try {
+                const ws_data = [['Prefixo (A)', 'Dependência (B)', 'Carteira (D)', 'Tipo Carteira (E)', 'Coluna G (Rlz.)', 'Coluna R (D-0)', 'Total Soma']];
+                resultadosOriginais.forEach(item => {
+                    ws_data.push([item.a, item.b, item.d, item.e, item.g, item.r, item.total]);
+                });
+                const ws = XLSX.utils.aoa_to_sheet(ws_data);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Resultados');
+                const fileName = `resultado_soma_${new Date().toISOString().split('T')[0]}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+                showStatus('Arquivo Excel exportado com sucesso!', 'success');
+            } catch (error) {
+                showError(`Erro ao exportar: ${error.message}`);
+            }
+        }
+
+        function limparResultados() {
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('errorDetails').style.display = 'none';
+            resultadosOriginais = [];
+            errosEncontrados = [];
+            showStatus('Resultados limpos.', 'info');
+        }
+
+        function updateButtonStates() {
+            const bothFilesLoaded = planilha1Data && planilha2Data;
+            document.getElementById('verifyBtn').disabled = !bothFilesLoaded;
+            document.getElementById('processBtn').disabled = !bothFilesLoaded;
+        }
+
+        function showStatus(message, type) {
+            const statusSection = document.getElementById('statusSection');
+            const statusMessage = document.getElementById('statusMessage');
+            statusSection.className = `status-section status-${type}`;
+            statusMessage.innerHTML = message;
+            statusSection.style.display = 'block';
+            if (type === 'success') {
+                setTimeout(() => { statusSection.style.display = 'none'; }, 3000);
+            }
+        }
+
+        function showError(message) { showStatus(`❌ ${message}`, 'error'); }
+
+        function showLoading(show) {
+            const loadingSection = document.getElementById('loadingSection');
+            loadingSection.style.display = show ? 'block' : 'none';
+        }
+
+        function formatNumber(num) {
+            if (num === null || num === undefined || isNaN(num)) return '0,00';
+            return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
     </script>
 </body>
 </html>
